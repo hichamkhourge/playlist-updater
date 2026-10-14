@@ -1,9 +1,12 @@
-name: Update gist
+name: Update playlist
 
 on:
   schedule:
-    - cron: "0 5 * * *"   # every day at 05:00 UTC
-  workflow_dispatch:       # lets you run it manually
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   update:
@@ -14,14 +17,15 @@ jobs:
           SRC: ${{ secrets.M3U_SOURCE_URL }}
         run: curl -fsSL "$SRC" -o playlist.m3u
 
-      - name: Update gist
+      - name: Publish
         env:
-          TOKEN: ${{ secrets.GIST_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           test -s playlist.m3u || { echo "playlist.m3u is empty"; exit 1; }
-          jq -n --rawfile c playlist.m3u '{files:{"playlist.m3u":{content:$c}}}' > payload.json
-          curl -sS -X PATCH "https://api.github.com/gists/5882a0f2b1ebf66f8ed77277ea604fba" \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            --data-binary @payload.json \
-            -w "\nHTTP %{http_code}\n"
+          mkdir out && mv playlist.m3u out/ && cd out
+          git init -b data
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add playlist.m3u
+          git commit -m "Update playlist $(date -u +%F)"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" data
