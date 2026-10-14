@@ -18,8 +18,10 @@ jobs:
         env:
           TOKEN: ${{ secrets.GIST_TOKEN }}
         run: |
-          jq -n --rawfile c playlist.m3u '{files:{"playlist.m3u":{content:$c}}}' \
-          | curl -fsS -X PATCH "https://api.github.com/gists/5882a0f2b1ebf66f8ed77277ea604fba" \
+          test -s playlist.m3u || { echo "playlist.m3u is empty"; exit 1; }
+          jq -n --rawfile c playlist.m3u '{files:{"playlist.m3u":{content:$c}}}' > payload.json
+          curl -sS -X PATCH "https://api.github.com/gists/5882a0f2b1ebf66f8ed77277ea604fba" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Accept: application/vnd.github+json" \
-            -d @-
+            --data-binary @payload.json \
+            -w "\nHTTP %{http_code}\n"
