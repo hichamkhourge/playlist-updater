@@ -1,0 +1,25 @@
+name: Update gist
+
+on:
+  schedule:
+    - cron: "0 5 * * *"   # every day at 05:00 UTC
+  workflow_dispatch:       # lets you run it manually
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download M3U
+        env:
+          SRC: ${{ secrets.M3U_SOURCE_URL }}
+        run: curl -fsSL "$SRC" -o playlist.m3u
+
+      - name: Update gist
+        env:
+          TOKEN: ${{ secrets.GIST_TOKEN }}
+        run: |
+          jq -n --rawfile c playlist.m3u '{files:{"playlist.m3u":{content:$c}}}' \
+          | curl -fsS -X PATCH "https://api.github.com/gists/5882a0f2b1ebf66f8ed77277ea604fba" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d @-
