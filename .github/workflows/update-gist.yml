@@ -17,15 +17,12 @@ jobs:
           SRC: ${{ secrets.M3U_SOURCE_URL }}
         run: curl -fsSL "$SRC" -o playlist.m3u
 
-      - name: Publish
+      - name: Publish to release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           test -s playlist.m3u || { echo "playlist.m3u is empty"; exit 1; }
-          mkdir out && mv playlist.m3u out/ && cd out
-          git init -b data
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
-          git add playlist.m3u
-          git commit -m "Update playlist $(date -u +%F)"
-          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" data
+          gh release view playlist >/dev/null 2>&1 || \
+            gh release create playlist --title "playlist" --notes "Auto-updated playlist"
+          gh release upload playlist playlist.m3u --clobber
