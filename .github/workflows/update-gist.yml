@@ -17,7 +17,7 @@ jobs:
           SRC: ${{ secrets.M3U_SOURCE_URL }}
         run: curl -fsSL "$SRC" -o full.m3u
 
-      - name: Remove movies and series
+      - name: Keep only Arabic live channels
         run: |
           awk '
           { sub(/\r$/,"") }
@@ -25,9 +25,20 @@ jobs:
           /^#EXTINF/ { inf=$0; next }
           /^#/ { if (inf!="") inf=inf "\n" $0; next }
           NF==0 { next }
-          { if (inf!="" && $0 !~ /\/(movie|series)\//) print inf "\n" $0; inf="" }
+          {
+            if (inf!="" && $0 !~ /\/(movie|series)\//) {
+              g=""
+              if (match(inf, /group-title="[^"]*"/)) g=tolower(substr(inf, RSTART, RLENGTH))
+              if (g ~ /(^|[^a-z])(ar|arb|arabic|arabia)([^a-z]|$)/ || g ~ /عرب/) print inf "\n" $0
+            }
+            inf=""
+          }
           ' full.m3u > playlist.m3u
+
           echo "Channels kept: $(grep -c '^#EXTINF' playlist.m3u)"
+          echo "--- Groups kept ---"
+          grep -o 'group-title="[^"]*"' playlist.m3u | sort | uniq -c | sort -rn | head -40
+
           SIZE=$(stat -c %s playlist.m3u)
           echo "Size: $SIZE bytes"
           [ "$SIZE" -gt 100 ] || { echo "Filtered file is empty"; exit 1; }
